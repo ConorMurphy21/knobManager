@@ -14,7 +14,7 @@ void parse_args(int argc, char** argv) {
     po::options_description desc;
     desc.add_options()
     ("module1.test", po::value<uint64_t>()->default_value(5))
-    ("module1.words", po::value<std::string>()->default_value("yes"))
+    ("module1.words", po::value<std::string>()->default_value("hello"))
     ("module1.hello", po::value<bool>()->default_value(true))
     ("module1.test2", po::value<uint32_t>()->default_value(6))
     ;

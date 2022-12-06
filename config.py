@@ -1,13 +1,14 @@
 import configparser
 import dataclasses
 import os
+import re
 import sys
 
 
 @dataclasses.dataclass
 class Flag:
     module: str
-    name: str
+    identifier: str
     val: str
     cpp_type: str
 
@@ -23,6 +24,8 @@ py_types = [
 cpp_types = [
     'bool',
     'std::string',
+    'string',
+    'float',
     'double',
     'uint64_t',
     'uint32_t',
@@ -37,13 +40,7 @@ py_to_cpp = {
 }
 
 
-def get_cpp_type(key: str, val: str):
-    # if explicitly defined in name
-    for ct in cpp_types:
-        if ct in key:
-            return ct
-
-    # otherwise guess
+def infer_cpp_type(val: str):
     py_type = None
     for (pt, test) in py_types:
         try:
@@ -61,10 +58,28 @@ def get_cpp_type(key: str, val: str):
     return py_to_cpp[py_type]
 
 
-def strip_data_types(key: str):
-    for ct in cpp_types:
-        key = key.removeprefix(f'{ct} ')
-    return key
+cpp_identifier_pattern = re.compile('^[A-Za-z_][A-Za-z0-9_]*$')
+
+
+def parse_identifier(key: str, val: str):
+    # replace all whitespace with one space (be forgiving about whitespace)
+    lhs = key.split()
+    if len(lhs) == 1:
+        if not cpp_identifier_pattern.match(key):
+            raise ValueError(f'Config.ini: {key} is not a valid c++ identifier')
+        return infer_cpp_type(val), key
+    elif len(lhs) == 2:
+        if lhs[0] not in cpp_types:
+            raise ValueError(f'Config.ini: {lhs[0]} is not a supported c++ type')
+        if not cpp_identifier_pattern.match(lhs[1]):
+            raise ValueError(f'Config.ini: {lhs[1]} is not a valid c++ identifier')
+        # add support for shorthand string identifier
+        if lhs[0] == 'string':
+            return 'std::string', lhs[1]
+        else:
+            return lhs[0], lhs[1]
+    else:
+        raise ValueError(f'Config.ini: {key} has too much white space to be a valid identifier')
 
 
 def parse_config(config_file: str):
@@ -72,21 +87,24 @@ def parse_config(config_file: str):
     cp.read(config_file)
     flags = []
     for module in cp.sections():
+        keys = set()
         for key in cp[module]:
             val = cp[module][key]
-            cpp_type = get_cpp_type(key, val)
-            name = strip_data_types(key)
+            cpp_type, identifier = parse_identifier(key, val)
+            if identifier in keys:
+                raise ValueError(f'Config.ini: {identifier} is defined twice in module {module}')
+            keys.add(identifier)
             # wrap string in quotes if there are none
             if cpp_type == 'std::string' and val[0] != '"':
                 val = f'"{val}"'
-            flags.append(Flag(module, name, val, cpp_type))
+            flags.append(Flag(module, identifier, val, cpp_type))
     return cp.sections(), flags
 
 
 def option_desc(flag: Flag):
     if flag.module == 'root':
-        return f'("{flag.name}", po::value<{flag.cpp_type}>()->default_value({flag.val}))'
-    return f'("{flag.module}.{flag.name}", po::value<{flag.cpp_type}>()->default_value({flag.val}))'
+        return f'("{flag.identifier}", po::value<{flag.cpp_type}>()->default_value({flag.val}))'
+    return f'("{flag.module}.{flag.identifier}", po::value<{flag.cpp_type}>()->default_value({flag.val}))'
 
 
 def main_config_str(flags: [Flag]):
@@ -124,21 +142,21 @@ def generate_main_config(path: str, flags: [Flag]):
 
 
 def type_decl(flag: Flag):
-    return f'const {flag.cpp_type} {flag.name};'
+    return f'const {flag.cpp_type} {flag.identifier};'
 
 
 def default_decl(flag: Flag):
-    return f'{flag.name}(FLAG_STORE["{flag.module}.{flag.name}"].as<{flag.cpp_type}>())'
+    return f'{flag.identifier}(FLAG_STORE["{flag.module}.{flag.identifier}"].as<{flag.cpp_type}>())'
 
 
 def param_decl(flag: Flag):
-    return f'{flag.cpp_type} {flag.name}'
+    return f'{flag.cpp_type} {flag.identifier}'
 
 
 def assigned_val(flag: Flag):
     if flag.cpp_type == 'std::string':
-        return f'{flag.name}(std::move({flag.name}))'
-    return f'{flag.name}({flag.name})'
+        return f'{flag.identifier}(std::move({flag.identifier}))'
+    return f'{flag.identifier}({flag.identifier})'
 
 
 def module_config_str(module: str, flags: [Flag]):
@@ -187,13 +205,19 @@ def config_update(path: str):
 
 def main():
     path = sys.argv[1]
-    #if not config_update(path):
-        #return
-    modules, flags = parse_config(os.path.join(path, 'config.ini'))
-    generate_main_config(path, flags)
-    for module in modules:
-        if module != 'root':
-            generate_module_config(path, module, [flag for flag in flags if flag.module == module])
+    if not config_update(path):
+        return
+    try:
+        modules, flags = parse_config(os.path.join(path, 'config.ini'))
+        generate_main_config(path, flags)
+        for module in modules:
+            if module != 'root':
+                generate_module_config(path, module, [flag for flag in flags if flag.module == module])
+
+    # don't print call stack on ValueError because it's an input problem not a script problem
+    except Exception as e:
+        print(e)
+        sys.exit(1)
 
 
 if __name__ == '__main__':

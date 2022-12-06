@@ -8,7 +8,7 @@ include_directories( ${Boost_INCLUDE_DIR} )
 
 add_executable(config main.cpp config.cpp)
 
-find_package( PythonInterp 3.10 REQUIRED )
+find_package( PythonInterp 3.9 REQUIRED )
 
 target_link_libraries(config LINK_PUBLIC ${Boost_LIBRARIES} )
 
