@@ -239,11 +239,12 @@ def config_update(path: str):
 
 def main():
     path = sys.argv[1]
-    if not config_update(path):
+    config_path = os.path.join(path, 'config')
+    if not config_update(config_path):
         return
     try:
-        modules, flags = parse_config(os.path.join(path, 'config.ini'))
-        generate_main_config(path, flags)
+        modules, flags = parse_config(os.path.join(config_path, 'config.ini'))
+        generate_main_config(config_path, flags)
         for module in modules:
             if module != 'root':
                 generate_module_config(path, module, [flag for flag in flags if flag.module == module])

@@ -1,4 +1,4 @@
-#include "config.h"
+#include "config/config.h"
 #include "module1/Module1.h"
 
 int main(int argc, char** argv) {
