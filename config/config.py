@@ -143,8 +143,6 @@ def parse_config(config_file: str):
 
 
 def option_desc(flag: Flag):
-    if flag.module == 'root':
-        return f'("{flag.identifier}", po::value<{flag.cpp_type}>()->default_value({flag.val}))'
     return f'("{flag.module}.{flag.identifier}", po::value<{flag.cpp_type}>()->default_value({flag.val}))'
 
 
@@ -237,22 +235,44 @@ def config_update(path: str):
     return os.path.getmtime(os.path.join(path, 'config.ini')) > os.path.getmtime(os.path.join(path, 'config.cpp'))
 
 
+def generate_default_config(path: str, flags: [Flag]):
+    filename = os.path.join(path, 'config.ini')
+    print(filename)
+    # only generate this file if one does not already exist
+    if os.path.exists(filename):
+        print('it exists')
+        return
+
+    cp = configparser.ConfigParser()
+    for flag in flags:
+        if flag.module not in cp.sections():
+            cp[flag.module] = {}
+        cp[flag.module][flag.identifier] = flag.val
+        if flag.val[0] == '"':
+            cp[flag.module][flag.identifier] = flag.val[1:-1]
+
+    with open(os.path.join(path, 'config.ini'), 'w') as file:
+        cp.write(file)
+
+
 def main():
     path = sys.argv[1]
     config_path = os.path.join(path, 'config')
     if not config_update(config_path):
         return
-    try:
-        modules, flags = parse_config(os.path.join(config_path, 'config.ini'))
-        generate_main_config(config_path, flags)
-        for module in modules:
-            if module != 'root':
-                generate_module_config(path, module, [flag for flag in flags if flag.module == module])
+
+    #try:
+    modules, flags = parse_config(os.path.join(config_path, 'config.ini'))
+    generate_main_config(config_path, flags)
+    for module in modules:
+        generate_module_config(path, module, [flag for flag in flags if flag.module == module])
+
+    generate_default_config(sys.argv[2], flags)
 
     # don't print call stack on ValueError because it's an input problem not a script problem
-    except Exception as e:
-        print(e)
-        sys.exit(1)
+    #except Exception as e:
+        #print(e)
+        #sys.exit(1)
 
 
 if __name__ == '__main__':

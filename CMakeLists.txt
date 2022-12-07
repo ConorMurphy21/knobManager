@@ -14,7 +14,7 @@ target_link_libraries(config LINK_PUBLIC ${Boost_LIBRARIES} )
 
 add_custom_target(
         generate_config ALL
-        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/config/config.py ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/config/config.py ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_BINARY_DIR}
         COMMENT "Generating config"
 )
 

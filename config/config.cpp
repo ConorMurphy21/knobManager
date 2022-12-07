@@ -35,6 +35,7 @@ void parse_args(int argc, char** argv) {
     ("module1.words", po::value<std::string>()->default_value("hello"))
     ("module1.hello", po::value<bool>()->default_value(true))
     ("module1.test2", po::value<uint32_t>()->default_value(5))
+    ("module2.test", po::value<uint64_t>()->default_value(11))
     ;
     po::store(po::parse_command_line(argc, argv, desc), FLAG_STORE);
     po::notify(FLAG_STORE);
