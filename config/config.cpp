@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) 2022 Data-Intensive Systems Lab, Simon Fraser University. 
  *
@@ -19,37 +18,40 @@
 // ANY CHANGES TO THIS FILE WILL NOT PERSIST
 // TO ADD A CONFIG FLAG ADD A NEW FLAG TO config/config.ini
 
-
 #include "config.h"
 
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/options_description.hpp>
 #include <iostream>
 
+namespace noname {
+namespace config {
 namespace po = boost::program_options;
 po::variables_map FLAG_STORE;
 
 void parse_args(int argc, char** argv) {
-    po::options_description desc;
-    desc.add_options()
-    ("module1.test", po::value<uint64_t>()->default_value(5))
-    ("module1.words", po::value<std::string>()->default_value("hello"))
-    ("module1.hello", po::value<bool>()->default_value(true))
-    ("module1.test2", po::value<uint32_t>()->default_value(1))
-    ;
-    po::store(po::parse_command_line(argc, argv, desc), FLAG_STORE);
-    po::notify(FLAG_STORE);
+  po::options_description desc;
+  desc.add_options()
+  ("module1.test", po::value<uint64_t>()->default_value(5))
+  ("module1.words", po::value<std::string>()->default_value("hello"))
+  ("module1.hello", po::value<bool>()->default_value(true))
+  ("module1.test2", po::value<uint32_t>()->default_value(6))
+  ;
+  po::store(po::parse_command_line(argc, argv, desc), FLAG_STORE);
+  po::notify(FLAG_STORE);
 
-    po::store(po::parse_config_file("config.ini", desc), FLAG_STORE);
-    po::notify(FLAG_STORE);
+  po::store(po::parse_config_file("config.ini", desc), FLAG_STORE);
+  po::notify(FLAG_STORE);
 }
     
 void print_config() {
-    std::cout << "[module1]" << std::endl;
-    std::cout << "test: " << FLAG_STORE["module1.test"].as<uint64_t>() << std::endl; 
-    std::cout << "words: " << FLAG_STORE["module1.words"].as<std::string>() << std::endl; 
-    std::cout << "hello: " << FLAG_STORE["module1.hello"].as<bool>() << std::endl; 
-    std::cout << "test2: " << FLAG_STORE["module1.test2"].as<uint32_t>() << std::endl; 
-    std::cout << "[module2]" << std::endl;
-    
+  std::cout << "[module1]" << std::endl;
+  std::cout << "test: " << config::FLAG_STORE["module1.test"].as<uint64_t>() << std::endl; 
+  std::cout << "words: " << config::FLAG_STORE["module1.words"].as<std::string>() << std::endl; 
+  std::cout << "hello: " << config::FLAG_STORE["module1.hello"].as<bool>() << std::endl; 
+  std::cout << "test2: " << config::FLAG_STORE["module1.test2"].as<uint32_t>() << std::endl; 
+  std::cout << "[module2]" << std::endl;
+  
 }
+} // namespace config
+} // namespace noname

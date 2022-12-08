@@ -22,9 +22,15 @@
 
 #include <boost/program_options/variables_map.hpp>
 
+namespace noname {
+namespace config {
+
 namespace po = boost::program_options;
 extern po::variables_map FLAG_STORE;
 
-void parse_args(int argc, char** argv);
+void parse_args(int argc, char **argv);
 
 void print_config();
+
+} // namespace config
+} // namespace noname

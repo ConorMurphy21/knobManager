@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) 2022 Data-Intensive Systems Lab, Simon Fraser University. 
  *
@@ -19,34 +18,31 @@
 // ANY CHANGES TO THIS FILE WILL NOT PERSIST
 // TO ADD A CONFIG FLAG ADD A NEW FLAG TO config/config.ini
 
-
 #pragma once
+
 #include <cstdint>
 #include <boost/program_options/variables_map.hpp>
 
 namespace po = boost::program_options;
 extern po::variables_map FLAG_STORE;
 
+namespace noname {
 namespace module1 {
-    typedef struct config_t{
-        const uint64_t test;
-        const std::string words;
-        const bool hello;
-        const uint32_t test2;
+typedef struct config_t {
+    const uint64_t test;
+    const std::string words;
+    const bool hello;
+    const uint32_t test2;
 
-        config_t()
-        : test(FLAG_STORE["module1.test"].as<uint64_t>())
-        , words(FLAG_STORE["module1.words"].as<std::string>())
-        , hello(FLAG_STORE["module1.hello"].as<bool>())
-        , test2(FLAG_STORE["module1.test2"].as<uint32_t>())
-        {}
-        
-        config_t(uint64_t test, std::string words, bool hello, uint32_t test2)
-        : test(test)
-        , words(std::move(words))
-        , hello(hello)
-        , test2(test2)
-        {}
-    } config_t;
-}
+    config_t()
+        : test(config::FLAG_STORE["module1.test"].as<uint64_t>()),
+          words(config::FLAG_STORE["module1.words"].as<std::string>()),
+          hello(config::FLAG_STORE["module1.hello"].as<bool>()),
+          test2(config::FLAG_STORE["module1.test2"].as<uint32_t>()) {}
+
+    config_t(uint64_t test, std::string words, bool hello, uint32_t test2)
+        : test(test), words(std::move(words)), hello(hello), test2(test2) {}
+} config_t;
+} // namespace module1
+} // namespace noname
     
