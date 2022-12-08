@@ -26,3 +26,5 @@ namespace po = boost::program_options;
 extern po::variables_map FLAG_STORE;
 
 void parse_args(int argc, char** argv);
+
+void print_config();

@@ -142,17 +142,17 @@ def parse_config(config_file: str):
     return cp.sections(), flags
 
 
-def option_desc(flag: Flag):
-    return f'("{flag.module}.{flag.identifier}", po::value<{flag.cpp_type}>()->default_value({flag.val}))'
-
-
-def main_config_str(flags: [Flag]):
+def main_config_str(modules: [str], flags: [Flag]):
+    def option_desc(flag: Flag):
+        return f'("{flag.module}.{flag.identifier}", po::value<{flag.cpp_type}>()->default_value({flag.val}))'
     option_descs = '\n    '.join(option_desc(flag) for flag in flags)
-    config_cpp = f'''
+
+    parse_args_cpp = f'''
 #include "config.h"
 
 #include <boost/program_options/parsers.hpp>
 #include <boost/program_options/options_description.hpp>
+#include <iostream>
 
 namespace po = boost::program_options;
 po::variables_map FLAG_STORE;
@@ -169,12 +169,24 @@ void parse_args(int argc, char** argv) {{
     po::notify(FLAG_STORE);
 }}
     '''
-    return HEADER_COMMENT + config_cpp
+
+    def module_print(module: str):
+        def variable_print(flag: Flag):
+            return f'std::cout << "{flag.identifier}: " << FLAG_STORE["{flag.module}.{flag.identifier}"].as<{flag.cpp_type}>() << std::endl; '
+        variable_prints = '\n    '.join(variable_print(flag) for flag in flags if flag.module == module)
+        return f'std::cout << "[{module}]" << std::endl;\n    ' + variable_prints
+    print_lines = '\n    '.join(module_print(module) for module in modules)
+    print_lines_cpp = f'''
+void print_config() {{
+    {print_lines}
+}}
+'''
+    return HEADER_COMMENT + parse_args_cpp + print_lines_cpp
 
 
-def generate_main_config(path: str, flags: [Flag]):
+def generate_main_config(path: str, modules: [str], flags: [Flag]):
     with open(os.path.join(path, 'config.cpp'), 'w') as file:
-        file.write(main_config_str(flags))
+        file.write(main_config_str(modules, flags))
 
 
 def module_config_str(module: str, flags: [Flag]):
@@ -194,20 +206,24 @@ namespace {module} {{
 
     def type_decl(flag: Flag):
         return f'const {flag.cpp_type} {flag.identifier};'
+
     type_decls = '\n        '.join(type_decl(flag) for flag in flags)
 
     def default_decl(flag: Flag):
         return f'{flag.identifier}(FLAG_STORE["{flag.module}.{flag.identifier}"].as<{flag.cpp_type}>())'
+
     default_vals = '\n        , '.join(default_decl(flag) for flag in flags)
 
     def param_decl(flag: Flag):
         return f'{flag.cpp_type} {flag.identifier}'
+
     param_decls = ', '.join(param_decl(flag) for flag in flags)
 
     def assigned_val(flag: Flag):
         if flag.cpp_type == 'std::string':
             return f'{flag.identifier}(std::move({flag.identifier}))'
         return f'{flag.identifier}({flag.identifier})'
+
     assigned_vals = '\n        , '.join(assigned_val(flag) for flag in flags)
 
     h_config = f'''
@@ -250,7 +266,6 @@ def generate_default_config(path: str, flags: [Flag]):
     print(filename)
     # only generate this file if one does not already exist
     if os.path.exists(filename):
-        print('it exists')
         return
 
     cp = configparser.ConfigParser()
@@ -271,18 +286,18 @@ def main():
     if not config_update(config_path):
         return
 
-    # try:
-    modules, flags = parse_config(os.path.join(config_path, 'config.ini'))
-    generate_main_config(config_path, flags)
-    for module in modules:
-        generate_module_config(path, module, [flag for flag in flags if flag.module == module])
+    try:
+        modules, flags = parse_config(os.path.join(config_path, 'config.ini'))
+        generate_main_config(config_path, modules, flags)
+        for module in modules:
+            generate_module_config(path, module, [flag for flag in flags if flag.module == module])
 
-    generate_default_config(sys.argv[2], flags)
+        generate_default_config(sys.argv[2], flags)
 
     # don't print call stack on ValueError because it's an input problem not a script problem
-    # except Exception as e:
-    # print(e)
-    # sys.exit(1)
+    except Exception as e:
+        print(e)
+        sys.exit(1)
 
 
 if __name__ == '__main__':
