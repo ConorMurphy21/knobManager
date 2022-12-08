@@ -22,7 +22,7 @@ import os
 import re
 import sys
 
-header_comment = '''
+HEADER_COMMENT = '''
 /*
  * Copyright (C) 2022 Data-Intensive Systems Lab, Simon Fraser University. 
  *
@@ -54,7 +54,7 @@ class Flag:
     cpp_type: str
 
 
-py_types = [
+PY_TYPES = [
     # (type, test)
     (int, int),
     (float, float),
@@ -62,7 +62,7 @@ py_types = [
     (str, str),
 ]
 
-cpp_types = [
+CPP_TYPES = [
     'bool',
     'std::string',
     'string',
@@ -74,7 +74,7 @@ cpp_types = [
     'int32_t',
 ]
 
-py_to_cpp = {
+PY_TO_CPP = {
     bool: 'bool',
     str: 'std::string',
     float: 'double',
@@ -83,7 +83,7 @@ py_to_cpp = {
 
 def infer_cpp_type(val: str):
     py_type = None
-    for (pt, test) in py_types:
+    for (pt, test) in PY_TYPES:
         try:
             if test(val):
                 py_type = pt
@@ -96,7 +96,7 @@ def infer_cpp_type(val: str):
             return 'int32_t'
         else:
             return 'uint64_t'
-    return py_to_cpp[py_type]
+    return PY_TO_CPP[py_type]
 
 
 cpp_identifier_pattern = re.compile('^[A-Za-z_][A-Za-z0-9_]*$')
@@ -110,7 +110,7 @@ def parse_identifier(key: str, val: str):
             raise ValueError(f'Config.ini: {key} is not a valid c++ identifier')
         return infer_cpp_type(val), key
     elif len(lhs) == 2:
-        if lhs[0] not in cpp_types:
+        if lhs[0] not in CPP_TYPES:
             raise ValueError(f'Config.ini: {lhs[0]} is not a supported c++ type')
         if not cpp_identifier_pattern.match(lhs[1]):
             raise ValueError(f'Config.ini: {lhs[1]} is not a valid c++ identifier')
@@ -169,7 +169,7 @@ void parse_args(int argc, char** argv) {{
     po::notify(FLAG_STORE);
 }}
     '''
-    return header_comment + config_cpp
+    return HEADER_COMMENT + config_cpp
 
 
 def generate_main_config(path: str, flags: [Flag]):
@@ -177,29 +177,39 @@ def generate_main_config(path: str, flags: [Flag]):
         file.write(main_config_str(flags))
 
 
-def type_decl(flag: Flag):
-    return f'const {flag.cpp_type} {flag.identifier};'
-
-
-def default_decl(flag: Flag):
-    return f'{flag.identifier}(FLAG_STORE["{flag.module}.{flag.identifier}"].as<{flag.cpp_type}>())'
-
-
-def param_decl(flag: Flag):
-    return f'{flag.cpp_type} {flag.identifier}'
-
-
-def assigned_val(flag: Flag):
-    if flag.cpp_type == 'std::string':
-        return f'{flag.identifier}(std::move({flag.identifier}))'
-    return f'{flag.identifier}({flag.identifier})'
-
-
 def module_config_str(module: str, flags: [Flag]):
+    if len(flags) == 0:
+        h_config = f'''
+#pragma once
+
+namespace {module} {{
+    typedef struct config_t{{
+
+        config_t() = default;   
+    
+    }} config_t;
+}}
+    '''
+        return HEADER_COMMENT + h_config
+
+    def type_decl(flag: Flag):
+        return f'const {flag.cpp_type} {flag.identifier};'
     type_decls = '\n        '.join(type_decl(flag) for flag in flags)
+
+    def default_decl(flag: Flag):
+        return f'{flag.identifier}(FLAG_STORE["{flag.module}.{flag.identifier}"].as<{flag.cpp_type}>())'
     default_vals = '\n        , '.join(default_decl(flag) for flag in flags)
+
+    def param_decl(flag: Flag):
+        return f'{flag.cpp_type} {flag.identifier}'
     param_decls = ', '.join(param_decl(flag) for flag in flags)
+
+    def assigned_val(flag: Flag):
+        if flag.cpp_type == 'std::string':
+            return f'{flag.identifier}(std::move({flag.identifier}))'
+        return f'{flag.identifier}({flag.identifier})'
     assigned_vals = '\n        , '.join(assigned_val(flag) for flag in flags)
+
     h_config = f'''
 #pragma once
 #include <cstdint>
@@ -222,7 +232,7 @@ namespace {module} {{
     }} config_t;
 }}
     '''
-    return header_comment + h_config
+    return HEADER_COMMENT + h_config
 
 
 def generate_module_config(path: str, module: str, flags: [Flag]):
@@ -261,7 +271,7 @@ def main():
     if not config_update(config_path):
         return
 
-    #try:
+    # try:
     modules, flags = parse_config(os.path.join(config_path, 'config.ini'))
     generate_main_config(config_path, flags)
     for module in modules:
@@ -270,9 +280,9 @@ def main():
     generate_default_config(sys.argv[2], flags)
 
     # don't print call stack on ValueError because it's an input problem not a script problem
-    #except Exception as e:
-        #print(e)
-        #sys.exit(1)
+    # except Exception as e:
+    # print(e)
+    # sys.exit(1)
 
 
 if __name__ == '__main__':
