@@ -268,16 +268,18 @@ def generate_module_config(path: str, module: str, flags: [Flag]):
         file.write(module_config_str(module, flags))
 
 
-def config_update(path: str):
+def should_regen_cpp(path: str):
     return os.path.getmtime(os.path.join(path, 'config.ini')) > os.path.getmtime(os.path.join(path, 'config.cpp'))
+
+
+# only generate this file if one does not already exist
+def missing_config(path: str):
+    filename = os.path.join(path, 'config.ini')
+    return not os.path.exists(filename)
 
 
 def generate_default_config(path: str, flags: [Flag]):
     filename = os.path.join(path, 'config.ini')
-    print(filename)
-    # only generate this file if one does not already exist
-    if os.path.exists(filename):
-        return
 
     cp = configparser.ConfigParser()
     for flag in flags:
@@ -294,16 +296,23 @@ def generate_default_config(path: str, flags: [Flag]):
 def main():
     path = sys.argv[1]
     config_path = os.path.join(path, 'config')
-    if not config_update(config_path):
+    should_regen = should_regen_cpp(config_path)
+    should_gen_config = missing_config(sys.argv[2])
+
+    if not should_regen and not should_gen_config:
         return
 
     try:
         modules, flags = parse_config(os.path.join(config_path, 'config.ini'))
+
+        if should_gen_config:
+            generate_default_config(sys.argv[2], flags)
+
+        if not should_regen:
+            return
         generate_main_config(config_path, modules, flags)
         for module in modules:
             generate_module_config(path, module, [flag for flag in flags if flag.module == module])
-
-        generate_default_config(sys.argv[2], flags)
 
     # don't print call stack on ValueError because it's an input problem not a script problem
     except Exception as e:

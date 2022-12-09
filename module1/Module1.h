@@ -7,7 +7,7 @@
 #include <utility>
 #include "config.h"
 
-namespace noname{
+namespace noname {
 namespace module1 {
 class Module1 {
 public:
